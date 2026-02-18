@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Generador de Conditions</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        margin: 40px;
+        background: #f4f6f8;
+    }
+    h1 {
+        color: #333;
+    }
+    textarea, input {
+        width: 100%;
+        padding: 10px;
+        margin-top: 10px;
+        margin-bottom: 20px;
+        font-family: monospace;
+    }
+    button {
+        padding: 10px 20px;
+        background: #2563eb;
+        color: white;
+        border: none;
+        cursor: pointer;
+    }
+    button:hover {
+        background: #1d4ed8;
+    }
+    #output {
+        background: #fff;
+        border: 1px solid #ccc;
+        padding: 10px;
+        white-space: pre-wrap;
+    }
+</style>
+</head>
+<body>
+
+<h1>Generador de XML Conditions</h1>
+
+<label>Nombre del campo:</label>
+<input type="text" id="fieldName" placeholder="Ej: eve_nif">
+
+<label>Listado (uno por línea):</label>
+<textarea id="inputList" rows="10" placeholder="Pega aquí los valores..."></textarea>
+
+<button onclick="generate()">Generar</button>
+
+<h2>Resultado:</h2>
+<div id="output"></div>
+
+<script>
+function generate() {
+    const field = document.getElementById("fieldName").value.trim();
+    const input = document.getElementById("inputList").value;
+
+    if (!field) {
+        alert("Introduce el nombre del campo.");
+        return;
+    }
+
+    const lines = input
+        .split("\n")
+        .map(line => line.trim())
+        .filter(line => line !== "");
+
+    const result = lines.map(value => 
+        `<condition attribute="${field}" operator="eq" value="${value}" />`
+    ).join("\n");
+
+    document.getElementById("output").textContent = result;
+}
+</script>
+
+</body>
+</html>
