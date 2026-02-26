@@ -2,77 +2,195 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Generador de Conditions</title>
+<title>FetchXML PRO Generator</title>
 <style>
-    body {
-        font-family: Arial, sans-serif;
-        margin: 40px;
-        background: #f4f6f8;
-    }
-    h1 {
-        color: #333;
-    }
-    textarea, input {
-        width: 100%;
-        padding: 10px;
-        margin-top: 10px;
-        margin-bottom: 20px;
-        font-family: monospace;
-    }
-    button {
-        padding: 10px 20px;
-        background: #2563eb;
-        color: white;
-        border: none;
-        cursor: pointer;
-    }
-    button:hover {
-        background: #1d4ed8;
-    }
-    #output {
-        background: #fff;
-        border: 1px solid #ccc;
-        padding: 10px;
-        white-space: pre-wrap;
-    }
+body {
+    font-family: Arial, sans-serif;
+    margin: 40px;
+    background: #0f172a;
+    color: #e2e8f0;
+}
+h1 { color: #38bdf8; }
+textarea, input, select {
+    width: 100%;
+    padding: 10px;
+    margin-top: 8px;
+    margin-bottom: 20px;
+    background: #1e293b;
+    color: white;
+    border: 1px solid #334155;
+    font-family: monospace;
+}
+button {
+    padding: 10px 20px;
+    margin-right: 10px;
+    background: #2563eb;
+    color: white;
+    border: none;
+    cursor: pointer;
+}
+button:hover { background: #1d4ed8; }
+#output {
+    background: #020617;
+    border: 1px solid #334155;
+    padding: 15px;
+    white-space: pre-wrap;
+    font-family: monospace;
+}
+.counter {
+    font-size: 14px;
+    margin-bottom: 10px;
+}
+.warning {
+    color: #f87171;
+    font-weight: bold;
+}
+.success {
+    color: #4ade80;
+}
 </style>
 </head>
 <body>
 
-<h1>Generador de XML Conditions</h1>
+<h1>🚀 FetchXML PRO Generator</h1>
 
 <label>Nombre del campo:</label>
 <input type="text" id="fieldName" placeholder="Ej: eve_nif">
 
+<label>Modo de generación:</label>
+<select id="mode">
+    <option value="in">IN (recomendado)</option>
+    <option value="eq">EQ (OR clásico)</option>
+</select>
+
+<label>Límite por bloque:</label>
+<select id="limit">
+    <option value="100">100</option>
+    <option value="200" selected>200 (recomendado)</option>
+    <option value="500">500</option>
+</select>
+
 <label>Listado (uno por línea):</label>
 <textarea id="inputList" rows="10" placeholder="Pega aquí los valores..."></textarea>
 
+<div class="counter">
+    Total valores: <span id="count">0</span>
+    <span id="warningMessage"></span>
+</div>
+
 <button onclick="generate()">Generar</button>
+<button onclick="copyOutput()">Copiar</button>
+<button onclick="clearAll()">Limpiar</button>
 
 <h2>Resultado:</h2>
 <div id="output"></div>
 
 <script>
+const inputList = document.getElementById("inputList");
+const countSpan = document.getElementById("count");
+const warningMessage = document.getElementById("warningMessage");
+
+inputList.addEventListener("input", updateCounter);
+
+function updateCounter() {
+    const values = getValues();
+    countSpan.textContent = values.length;
+
+    if (values.length > 5000) {
+        warningMessage.textContent = " ⚠️ Más de 5000 valores puede afectar rendimiento.";
+        warningMessage.className = "warning";
+    } else {
+        warningMessage.textContent = "";
+    }
+}
+
+function getValues() {
+    const raw = inputList.value
+        .split("\n")
+        .map(v => v.trim())
+        .filter(v => v !== "");
+
+    // quitar duplicados
+    return [...new Set(raw)];
+}
+
 function generate() {
     const field = document.getElementById("fieldName").value.trim();
-    const input = document.getElementById("inputList").value;
+    const mode = document.getElementById("mode").value;
+    const limit = parseInt(document.getElementById("limit").value);
 
     if (!field) {
         alert("Introduce el nombre del campo.");
         return;
     }
 
-    const lines = input
-        .split("\n")
-        .map(line => line.trim())
-        .filter(line => line !== "");
+    const values = getValues();
+    if (values.length === 0) {
+        alert("No hay valores.");
+        return;
+    }
 
-    const result = lines.map(value => 
-        `<condition attribute="${field}" operator="eq" value="${value}" />`
-    ).join("\n");
+    const chunks = [];
+    for (let i = 0; i < values.length; i += limit) {
+        chunks.push(values.slice(i, i + limit));
+    }
+
+    let result = "";
+
+    if (mode === "in") {
+
+        result += `<filter type="or">\n`;
+
+        chunks.forEach(chunk => {
+            result += `  <condition attribute="${field}" operator="in">\n`;
+            chunk.forEach(value => {
+                result += `    <value>${value}</value>\n`;
+            });
+            result += `  </condition>\n`;
+        });
+
+        result += `</filter>`;
+
+    } else {
+
+        result += `<filter type="or">\n`;
+
+        chunks.forEach(chunk => {
+            chunk.forEach(value => {
+                result += `  <condition attribute="${field}" operator="eq" value="${value}" />\n`;
+            });
+        });
+
+        result += `</filter>`;
+    }
 
     document.getElementById("output").textContent = result;
+
+    // guardar config
+    localStorage.setItem("fieldName", field);
+    localStorage.setItem("mode", mode);
+    localStorage.setItem("limit", limit);
 }
+
+function copyOutput() {
+    const text = document.getElementById("output").textContent;
+    navigator.clipboard.writeText(text);
+    alert("Copiado al portapapeles.");
+}
+
+function clearAll() {
+    inputList.value = "";
+    document.getElementById("output").textContent = "";
+    updateCounter();
+}
+
+// cargar configuración guardada
+window.onload = function() {
+    document.getElementById("fieldName").value = localStorage.getItem("fieldName") || "";
+    document.getElementById("mode").value = localStorage.getItem("mode") || "in";
+    document.getElementById("limit").value = localStorage.getItem("limit") || "200";
+    updateCounter();
+};
 </script>
 
 </body>
